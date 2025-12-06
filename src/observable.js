@@ -1,49 +1,38 @@
-export function obs(value) {
-  const subscribers = new Set();
+export function obs(initial) {
+  let value = initial;
+  const subs = new Set();
+  const computedSubs = new Map();
+
+  function notify(v) {
+    subs.forEach(fn => fn(v));
+    computedSubs.forEach(cleanup => cleanup());
+    computedSubs.clear();
+  }
 
   return {
-    value,
-    subscribe(fn) {
-      subscribers.add(fn);
-      return () => subscribers.delete(fn);
-    },
-    update(v) {
-      subscribers.forEach(fn => fn(v));
-    },
-  };
-}
-
-let subscriber = null;
-
-export function signal(value) {
-  const subscriptions = new Set();
-
-  return {
-    get v() {
-      if (subscriber) {
-        subscriptions.add(subscriber);
-      }
+    [Symbol.toPrimitive](hint) {
       return value;
     },
+    update(v) {
+      value = typeof v === 'function' ? v(value) : v;
+      notify(value);
+    },
+    subscribe(fn) {
+      subs.add(fn);
+      return () => subs.delete(fn);
+    },
 
-    set v(updateValue) {
-      value = updateValue;
+    computed(fn) {
+      const c = obs(fn(value));
+      const unsub = this.subscribe(v => {
+        c.update(fn(v));
+      });
+      computedSubs.set(fn, unsub);
 
-      subscriptions.forEach(fn => fn());
+      return c;
+    },
+    debug() {
+      return value;
     },
   };
-}
-
-export function effect(fn) {
-  subscriber = fn;
-  fn();
-  subscriber = null;
-}
-
-export function derived(fn) {
-  const derived = signal();
-  effect(() => {
-    derived.v = fn();
-  });
-  return derived;
 }
