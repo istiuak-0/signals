@@ -1,15 +1,18 @@
-import { obs } from './observable.js';
+import { combine, obs } from './observable.js';
 
 const btn = document.querySelector('#btn');
-const count = obs(2);
 
-const double = count.computed(v => v * 2);
+let count = obs(2);
+const count2 = obs(4);
 
-double.subscribe(() => {
-  console.log(double.debug());
-});
+btn.textContent=count;
+
 
 btn.addEventListener('click', () => {
   count.update(value => value * 2);
-  console.log(count.debug());
+});
+
+combine(count, count2).subscribe(() => {
+  btn.textContent = count;
+
 });
